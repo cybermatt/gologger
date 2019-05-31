@@ -81,12 +81,12 @@ func (record *Record) validate() error {
 	return err
 }
 
-func (record *Record) dumps() []byte {
+func (record *Record) dumps() ([]byte, error) {
 	body, err := json.Marshal(record)
 	if err != nil {
-		failOnError(err, "Failed to marshal a record.") // TODO: continue
+		continueOnError(err, "Failed to marshal a record.")
 	}
-	return body
+	return body, err
 }
 
 func failOnError(err error, msg string) {
@@ -163,18 +163,19 @@ func randomRecord() Record {
 
 func examplePublish(rch *amqp.Channel, q *amqp.Queue) {
 	record := randomRecord()
-	body := record.dumps()
-	err := rch.Publish(
-		"",
-		q.Name,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(body),
-		},
-	)
-	failOnError(err, "Failed to publish a message.")
+	if body, err := record.dumps(); err != nil {
+		err := rch.Publish(
+			"",
+			q.Name,
+			false,
+			false,
+			amqp.Publishing{
+				ContentType: "text/plain",
+				Body:        body,
+			},
+		)
+		failOnError(err, "Failed to publish a message.")
+	}
 }
 
 func writeMessage(body []byte, db *sql.DB) {
